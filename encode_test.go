@@ -14,37 +14,50 @@ import (
 
 func BenchmarkEncode(b *testing.B) {
 	rand.Seed(time.Now().Unix())
-	data := make([]byte, 1024*1024)
+	data := make([]byte, dataSize)
 	fmt.Println("分配内存完毕")
 	fillRandom(data)
 	home := os.Getenv("HOME")
 	f, _ := os.Create(path.Join(home, "testFile-raw.data"))
 	f.Write(data)
 	fmt.Println("数据生成完毕")
-	order, _, _ := GenParams(128 * 8 * 4)
+	order, _, _ := GenParams(m)
 	stripeID := make([]byte, 32)
 	fillRandom(stripeID)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		encode(stripeID, data, order, 128*8*4, 4, true)
+		encode(stripeID, data, order, m, difficulty, true)
 	}
 }
 
 func BenchmarkLayerEncode(b *testing.B) {
+	//在此调整一些参数
+	dataSize = 1024 * 1024
+	m = 128 * 8 * 4
+	difficulty = 4
+	layers = 11
+	conn = 2
+	//在此打印一些参数
+	fmt.Println("编码输出大小:", 3*dataSize/(1024*1024), "M")
+	fmt.Println("GF(2^m) m =", m, ",", m/8, "byte")
+	fmt.Println("layers =", layers)
+	fmt.Println("难度值", difficulty)
+	fmt.Println("DRG依赖节点数 = ", conn)
+
 	rand.Seed(time.Now().Unix())
-	data := make([]byte, 1024*1024)
+	data := make([]byte, dataSize)
 	fmt.Println("分配内存完毕")
 	fillRandom(data)
 	home := os.Getenv("HOME")
 	f, _ := os.Create(path.Join(home, "testFile-raw.data"))
 	f.Write(data)
 	fmt.Println("数据生成完毕")
-	order, _, _ := GenParams(128 * 8 * 4)
+	order, _, _ := GenParams(m)
 	stripeID := make([]byte, 32)
 	fillRandom(stripeID)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		layerEncode(stripeID, data, order, 128*8*4, 4, 11)
+		layerEncode(stripeID, data, order, m, difficulty, layers)
 	}
 }
 
