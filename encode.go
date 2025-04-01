@@ -10,6 +10,12 @@ import (
 	"path"
 )
 
+var dataSize = 1024 * 1024
+var m = 128 * 8 * 4
+var difficulty = 4
+var layers = 11
+var conn = 2
+
 //GenParams 利用生成参数，返回一个阶N以及对应的phi(N)
 func GenParams(bits int) (*big.Int, *big.Int, error) {
 	t := uint(bits)
@@ -23,7 +29,7 @@ func layerEncode(stripeID []byte, data []byte, order *big.Int, bitLen, dif, laye
 	v := big.NewInt(1).Lsh(big.NewInt(1), uint(dif))
 	bigOne := new(big.Int).SetInt64(1)
 	//需要生成的遮掩数据
-	count := 3 * 1024 * 1024 / (bitLen / 8)
+	count := 3 * dataSize / (bitLen / 8)
 
 	fmt.Println("Count", count)
 	k := make([]*big.Int, count)
@@ -47,7 +53,7 @@ func layerEncode(stripeID []byte, data []byte, order *big.Int, bitLen, dif, laye
 			s1 := rand.NewSource(k[0].Int64())
 			r1 := rand.New(s1)
 			for i := 1; i < count; i++ {
-				par := genParents(i, 2, k[0], r1)
+				par := genParents(i, conn, k[0], r1)
 				for _, j := range par {
 					k[i].Add(k[i], k[j])
 				}
