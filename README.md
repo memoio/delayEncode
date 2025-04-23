@@ -1,128 +1,127 @@
 # delayEncode
 
-## 参数
+## Parameters
 
-- T：给定时间，生成数据的时间要大于此给定时间；
-- L：生成的数据的长度；
-- R：生成数据的速度；
-- B：数据块的长度；
-- f(*)：难度函数；
-- h(*)：哈希函数；
-- g(*)：生成依赖关系的函数
-- s：生成数据的种子；
+- T: Given time, the time to generate data must be greater than this given time;
 
-## 编码
+- L: Length of generated data;
 
-前面m层每一层的目的是增加难度，不能逆向计算而且不能并行计算。采用多层目的是防止预存一部分数据，使得encoding时间小于$T$。
+- R: Speed ​​of generated data;
 
-### layer  1
+- B: Length of data block;
 
-第0层目的是增加难度，不能逆向计算而且不能并行计算。
+- f(*): Difficulty function;
+
+- h(*): Hash function;
+
+- g(*): Function to generate dependency
+
+- s: Seed to generate data;
+
+## Encoding
+
+The purpose of each of the first m layers is to increase the difficulty, and it cannot be calculated in reverse or in parallel. The purpose of using multiple layers is to prevent pre-storing part of the data, so that the encoding time is less than $T$.
+
+### layer 1
+
+The purpose of layer 0 is to increase the difficulty, and it cannot be calculated in reverse or in parallel.
 $$
-k_0^1 = f(s) \\k_1^1 = f(\{k_l;l\in g(1,c)\}) \\k_2^1 = f(\{k_l;l\in g(2,c)\}) \\... \\k_j^1 = f(\{k_l;l\in g(j,c)\}) \\... \\k_{n-1}^1 = f(\{k_l;l\in g(n-1,c)\})  \\k_{n}^1 = f(\{k_l;l\in g(n,c)\}) \\
+k_0^1 = f(s) \\k_1^1 = f(\{k_l;l\in g(1,c)\}) \\k_2^1 = f(\{k_l;l\in g(2,c)\}) \\... \\k_j^1 = f(\{k_l;l\in g(j,c)\}) \\... \\k_{n-1}^1 = f(\{k_l;l\in g(n-1,c)\}) \\k_{n}^1 = f(\{k_l;l\in g(n,c)\}) \\
 $$
 
 ### layer i
 
-奇数层从0到n-1，偶数层从n-1到0；生成的依赖顺序，初始值为上一层同一位置的结果，依赖本层已经算出来的数据。
+Odd layers are from 0 to n-1, and even layers are from n-1 to 0; the generated dependency order, the initial value is the result of the same position in the previous layer, and depends on the data already calculated in this layer.
 $$
-k_0^1 = f(s) \\k_1^1 = f(k_1^{l-1},\{k_l;l\in g(1,c)\}) \\k_2^1 = f(k_2^{l-1},\{k_l;l\in g(2,c)\}) \\... \\k_j^1 = f(k_j^{l-1},\{k_l;l\in g(j,c)\}) \\... \\k_{n-1}^1 = f(k_{n-1}^{l-1},\{k_l;l\in g(n-1,c)\})  \\k_{n}^1 = f(k_n^{l-1},\{k_l;l\in g(n,c)\}) \\
+k_0^1 = f(s) \\k_1^1 = f(k_1^{l-1},\{k_l;l\in g(1,c)\}) \\k_2^1 = f(k_2^{l-1},\{k_l;l\in g(2,c)\}) \\... \\k_j^1 = f(k_j^{l-1},\{k_l;l\in g(j,c)\}) \\... \\k_{n-1}^1 = f(k_{n-1}^{l-1},\{k_l;l\in g(n-1,c)\}) \\k_{n}^1 = f(k_n^{l-1},\{k_l;l\in g(n,c)\}) \\
 $$
 
+### layer m
 
-### layer  m
-
-最后一层的目的是将难度分散到每一位数据上。
+The purpose of the last layer is to distribute the difficulty to each bit of data.
 $$
 e_n = k_n \\e_{n-1} = (e_n + k_{n-1}) \bigoplus k_0 \\... \\e_j = (e_{j+1} + k_j) \bigoplus k_{n-1-j} \\...\\e_1 = (e_2 + k_1) \bigoplus k_{n-2} \\e_0 = (e_1+k_0) \bigoplus k_{n-1}
 $$
 
-### 函数选择
+### Function selection
 
+- Difficulty function $f$, for example $f(x) = x^{2^t}$, t is the difficulty value, that is, the larger $t$ is, the slower $R$ is.
+- Hash function h, choose hash256;
+- Dependent function g, choose to use [DRSample](https://acmccs.github.io/papers/p1001-alwenA.pdf), and filecoin's modified algorithm [DRG](https://github.com/filecoin-project/drg-attacks/blob/master/notes.md)
 
-
-- 难度函数$f$，例如$f(x) = x^{2^t}$，t为 难度值即$t$越大，$R$越慢。
-- 哈希函数h，选择hash256;
-- 依赖函数g，选择使用[DRSample](https://acmccs.github.io/papers/p1001-alwenA.pdf)，以及filecoin修改后的算法[DRG](https://github.com/filecoin-project/drg-attacks/blob/master/notes.md)
-
-以下为伪代码：
+The following is pseudo code:
 
 ```
-// i为第i个数据片（32B或128B等）
-// c表示产生c个parents，即当前的$k_i$计算依赖c个前面的$k_{?}$的结果
-// s为块生产的初始id;k_{x}为第x个计算结果
+// i is the i-th data slice (32B or 128B, etc.)
+// c means generating c parents, that is, the current $k_i$ calculation depends on the results of c previous $k_{?}$
+// s is the initial id of block production; k_{x} is the x-th calculation result
 g(i,c) {
-	r = rand.NewRander(s+i) //产生新的随机种子
-	logi = math.Floor(math.log2(i*c))
-	
-	if i == 0 {
-		return 0
-	}
-	
-	// 计算每一个依赖
-	for l:=0; l<c;l++ {
-		j = r.Next() % logi
-		jj = math.Min(i*c+l, 1 << (j + 1))
-		dist = r.Next(math.Max(jj >> 1, 2), jj + 1);
-		if i - dist == i {
-			dag[l] = i-1
-		} else {
-			dag[l] = i - dist // dag保存每一个依赖
-		}
-	}
+r = rand.NewRander(s+i) //Generate a new random seed
+logi = math.Floor(math.log2(i*c))
 
-	return dag
+if i == 0 {
+return 0
 }
 
-// x为输入值
+// Calculate each dependency
+for l:=0; l<c;l++ {
+j = r.Next() % logi
+jj = math.Min(i*c+l, 1 << (j + 1))
+dist = r.Next(math.Max(jj >> 1, 2), jj + 1);
+if i - dist == i {
+dag[l] = i-1
+} else {
+dag[l] = i - dist // dag saves each dependency
+}
+}
+
+return dag
+}
+
+// x is the input value
 h(x) {
-	return hash256(x)
+return hash256(x)
 }
 
-// x为输入值
-// t为难度函数
-// l表示第l层
+// x is the input value
+// t is the difficulty function
+// l represents the lth layer
 f([]x) {
-	// 对输入求和
-	res = sum(x)
-	hx = hash(res)
-	t = exp(2,t)
-	// 可以选择对hash结果算指数运算，也可以对x算hash结果
-	return add(res,exp(hx,t)) 
+// Sum the input
+res = sum(x)
+hx = hash(res)
+t = exp(2,t)
+// You can choose to perform exponential operation on the hash result or on x.
+return add(res,exp(hx,t))
 }
 ```
 
+## Data generation analysis
 
+Data is generated incrementally according to the seed, and d bits of data are generated each time. Each d-bit generation includes:
 
-## 数据生成分析
+(c+1)*(m-1)+1 ADD operation; 1 XOR operation; m-1 EXP operation; m-1 hash operation; m-1 g function call;
 
-数据根据种子递增生成，每次生成d位数据，每次d位的生成包括：
+Test results, running on i5-8250 @1.6G cpu
 
-（c+1）*(m-1)+1次ADD操作；1次XOR操作；m-1次EXP操作；m-1次hash操作；m-1次g函数调用;
-
-测试结果，在i5-8250 @1.6G cpu上运行
-
-|     d      |  ADD  |  XOR  |          EXP          | hash  |   g   | encode(c=2) |
+| d | ADD | XOR | EXP | hash | g | encode(c=2) |
 | :--------: | :---: | :---: | :-------------------: | :---: | :---: | :---------: |
-| 4096(m=2)  | 200ns | 200ns | 50us(t = 4, 底为512B) | 450ns | 400ns |  7.4 MB/s   |
-| 4096(m=2)  | 200ns | 200ns |  5us(t = 4, 底为32B)  | 450ns | 400ns |   63 MB/s   |
-| 4096(m=11) | 200ns | 200ns |  5us(t = 4, 底为32B)  | 450ns | 400ns |  8.1 MB/s   |
+| 4096(m=2) | 200ns | 200ns | 50us(t = 4, base is 512B) | 450ns | 400ns | 7.4 MB/s |
+| 4096(m=2) | 200ns | 200ns | 5us(t = 4, base is 32B) | 450ns | 400ns | 63 MB/s |
+| 4096(m=11) | 200ns | 200ns | 5us(t = 4, base is 32B) | 450ns | 400ns | 8.1 MB/s |
 
+## Forgery Difficulty Analysis
 
+Assuming that $\delta\times L(\delta < 1)$ data is pre-stored, when using (m+1) layer encoding, the data generation time is $T_e$ and the calculation time is $T_e\times (1-\delta/m)$, when $\delta->1$, the minimum time is $T_e\times (1-1/m)$, that is, even if 1 bit of data is stored less, $T_e\times (1-1/m)$ is required; in this case, $T_e\times (1-1/m) > T$.
 
-## 伪造难度分析
+## Performance Analysis
 
-假设预存$\delta\times L(\delta < 1)$的数据，在使用(m+1) 层编码的时候，生成数据时间为$T_e$，计算时间为$T_e\times (1-\delta/m)$，在$\delta->1$的时候，最小时间为$T_e\times (1-1/m)$，也就是说即使少存1bit的数据，也需要$T_e\times (1-1/m)$；此时需要$T_e\times (1-1/m) > T$即可。
-
-## 性能分析
-
-$R$主要被难度函数限制，$R$需要满足条件：
+$R$ is mainly limited by the difficulty function, and $R$ needs to meet the following conditions:
 
 $T \lt \frac{L}{R}\times (1-\frac{1}{m})$
 
-因此维持$T$不变的时候，难度选择越小，$R$越大，相应的生成的数据大小也越大。
+Therefore, when $T$ is kept unchanged, the smaller the difficulty, the larger $R$, and the correspondingly larger the generated data size.
 
-- 写入性能：将用户空间按固定大小D划分，每一块一个生成数据的种子，生成的数据大小为D，则写入性能为$R$；
-- 读取性能：用户连续读取，最大性能为$R$；
-- 修复性能：修复一个块的时间$T$，因此块越大，修复性能越好；
-
+- Write performance: Divide the user space into fixed size D, and each block has a seed for generating data. The size of the generated data is D, and the write performance is $R$;
+- Read performance: Users read continuously, and the maximum performance is $R$;
+- Repair performance: The time to repair a block is $T$, so the larger the block, the better the repair performance;
